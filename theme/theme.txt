@@ -15,9 +15,9 @@ terminal-box: "menu_bkg_*.png"
     width = 60%
     top = 30%
     height = 40%
-    item_font = "Norwester Regular 20"
+    item_font = "Norwester Regular 40"
     item_color = "#919090"
-    selected_item_font = "Norwester Regular 22"
+    selected_item_font = "Norwester Regular 44"
     selected_item_color = "#ffffff"
     icon_width = 40
     icon_height = 40
