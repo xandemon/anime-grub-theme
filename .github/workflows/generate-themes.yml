@@ -1,0 +1,52 @@
+name: Generate Theme Variants
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'base/**'
+      - 'variants/**'
+      - '.github/workflows/generate-themes.yml'
+      - 'generate-themes.sh'
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  generate-themes:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for proper git operations
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Generate theme variants
+        run: |
+          chmod +x generate-themes.sh
+          ./generate-themes.sh
+      
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if [ -n "$(git status --porcelain themes/)" ]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit generated themes
+        if: steps.check-changes.outputs.changes == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add themes/
+          git commit -m "Auto-generate theme variants" || exit 0
+          
+          # Try to push, if conflict occurs, pull and merge then push again
+          if ! git push; then
+            echo "Push failed, attempting to pull and merge..."
+            git pull --rebase origin main || git pull origin main --no-edit
+            git push
+          fi
