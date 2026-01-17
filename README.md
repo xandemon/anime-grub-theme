@@ -1,6 +1,6 @@
 # Anime GRUB Theme
 
-A lightweight & minimal anime-inspired GRUB bootloader theme with multiple cool-looking variants.
+A modern, lightweight & minimal anime-inspired GRUB bootloader theme with multiple cool-looking variants.
 
 ## Previews
 
@@ -61,3 +61,6 @@ This will:
 
 > Run `./generate-themes.sh` locally to test.
 
+---
+
+Originally inspired from [DedSec Grub Theme by VandalByte](https://www.pling.com/p/1569525)
