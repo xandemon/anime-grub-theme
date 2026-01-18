@@ -1,52 +1,62 @@
-name: Generate Theme Variants
+name: Generate Theme Variants and Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - 'base/**'
       - 'variants/**'
+      - 'VERSION'
       - '.github/workflows/generate-themes.yml'
       - 'generate-themes.sh'
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
-  generate-themes:
+  generate-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Fetch full history for proper git operations
-          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
       
-      - name: Generate theme variants
-        run: |
-          chmod +x generate-themes.sh
-          ./generate-themes.sh
+      - name: Install zip
+        run: sudo apt-get update && sudo apt-get install -y zip
       
-      - name: Check for changes
-        id: check-changes
+      - name: Read version
+        id: version
         run: |
-          if [ -n "$(git status --porcelain themes/)" ]; then
-            echo "changes=true" >> $GITHUB_OUTPUT
+          if [ -f VERSION ]; then
+            VERSION=$(cat VERSION | tr -d '[:space:]')
           else
-            echo "changes=false" >> $GITHUB_OUTPUT
+            VERSION=$(date +%Y.%m.%d-%H%M%S)
           fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag=v$VERSION" >> $GITHUB_OUTPUT
       
-      - name: Commit generated themes
-        if: steps.check-changes.outputs.changes == 'true'
+      - name: Generate themes
+        run: chmod +x generate-themes.sh && ./generate-themes.sh
+      
+      - name: Create/update release
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add themes/
-          git commit -m "Auto-generate theme variants" || exit 0
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          THEMES=$(ls releases/*.zip 2>/dev/null | sed 's|releases/||; s|\.zip||' | sed 's/^/- /' || echo "")
           
-          # Try to push, if conflict occurs, pull and merge then push again
-          if ! git push; then
-            echo "Push failed, attempting to pull and merge..."
-            git pull --rebase origin main || git pull origin main --no-edit
-            git push
+          NOTES="## Anime GRUB Theme v${VERSION}
+          
+          ### Available Themes
+          ${THEMES}"
+          
+          if gh release view "$TAG" 2>/dev/null; then
+            gh release delete-asset "$TAG" --pattern "*.zip" 2>/dev/null || true
+            gh release edit "$TAG" --title "Anime GRUB Theme v${VERSION}" --notes "$NOTES"
+          else
+            gh release create "$TAG" --title "Anime GRUB Theme v${VERSION}" --notes "$NOTES"
           fi
+          
+          for zip_file in releases/*.zip; do
+            gh release upload "$TAG" "$zip_file" --clobber
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
